@@ -46,27 +46,30 @@ def splitting(docs: List[Document], splitter_kwargs: Dict[str, Any])->List[Docum
 
     return splits
 
-def get_vectorstore(chroma_collection_name: str,
-                    model_name: str)->VectorStore:
-    
+def get_embedding(model_name):
     if model_name:
         model_kwargs = {'device': 'cpu'}
-        encode_kwargs = {'normalize_embeddings': False}
+        encode_kwargs = {'normalize_embeddings': True}
         emb_model = HuggingFaceEmbeddings(model_name=model_name,
                                           model_kwargs=model_kwargs,
                                           encode_kwargs=encode_kwargs)
     else:
         emb_model = FakeEmbeddings(size=200)
 
+    return emb_model
+
+def get_vectorstore(chroma_collection_name: str,
+                    model_name: str)->VectorStore:
+    
     # connect to Chroma client
-    client = chromadb.PersistentClient(path=chroma_collection_name)
+    client = chromadb.PersistentClient()
     collection = client.get_or_create_collection(chroma_collection_name)
 
     # Langchain Chroma wrapper
     langchain_chroma = Chroma(
         client=client,
         collection_name=chroma_collection_name,
-        embedding_function=emb_model
+        embedding_function=get_embedding(model_name)
     )
     return langchain_chroma
 

@@ -1,5 +1,6 @@
 venv
 .env
 chroma
+chroma-viewer
 data
 **/__pycache__
