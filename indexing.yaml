@@ -1,0 +1,6 @@
+data_dir: "data"
+chroma_collection_name: "demo1"
+embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+splitter_kwargs:
+  chunk_size: 1000
+  chunk_overlap: 200
