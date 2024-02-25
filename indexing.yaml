@@ -1,5 +1,6 @@
 data_dir: "data"
 chroma_collection_name: "chroma-demo"
+distance_fn: "ip"
 embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
 splitter_kwargs:
   chunk_size: 30

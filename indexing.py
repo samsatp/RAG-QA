@@ -16,12 +16,13 @@ from langchain.embeddings.base import Embeddings
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import FakeEmbeddings, HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores.chroma import Chroma
 
 
 class Config(BaseModel):
     data_dir: str
     chroma_collection_name: str
+    distance_fn: str
     embedding_model: str
     splitter_kwargs: Dict[str, Any]
 
@@ -59,18 +60,17 @@ def get_embedding(model_name):
     return emb_model
 
 def get_vectorstore(chroma_collection_name: str,
+                    distance_fn: str,
                     model_name: str)->VectorStore:
     
     # connect to Chroma client
     client = chromadb.PersistentClient()
-    collection = client.get_or_create_collection(chroma_collection_name)
 
     # Langchain Chroma wrapper
-    langchain_chroma = Chroma(
-        client=client,
-        collection_name=chroma_collection_name,
-        embedding_function=get_embedding(model_name)
-    )
+    langchain_chroma = Chroma(client=client,
+                              collection_name=chroma_collection_name,
+                              embedding_function=get_embedding(model_name),
+                              collection_metadata={"hnsw:space": distance_fn})    
     return langchain_chroma
 
 def main():
@@ -80,7 +80,8 @@ def main():
     docs = get_documents(data_dir=config.data_dir)
     chunks = splitting(docs, splitter_kwargs=config.splitter_kwargs)
     vectorstore = get_vectorstore(chroma_collection_name=config.chroma_collection_name,
-                                  model_name=config.embedding_model)
+                                  model_name=config.embedding_model,
+                                  distance_fn=config.distance_fn)
     
     vectorstore.add_documents(chunks)
     print(f"{len(chunks)} chunks added")
