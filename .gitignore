@@ -4,3 +4,4 @@ chroma
 chroma-viewer
 data
 **/__pycache__
+*.xlsx

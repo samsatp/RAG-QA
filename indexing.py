@@ -26,8 +26,12 @@ class Config(BaseModel):
     embedding_model: str
     splitter_kwargs: Dict[str, Any]
 
+config = yaml.load(open("indexing.yaml","r"), Loader=yaml.FullLoader)
+print('INDEXING CONFIG')
+pprint(config)
+config = Config(**config)
 
-def get_documents(data_dir: os.PathLike)->List[Document]:
+def get_documents(data_dir: os.PathLike = config.data_dir)->List[Document]:
     docs = []
     for f in os.listdir(data_dir):
         loader = TextLoader(os.path.join(data_dir,f))
@@ -37,7 +41,8 @@ def get_documents(data_dir: os.PathLike)->List[Document]:
 def extract_meta(text: str)->Dict[str,str]:
     return {'meta1':text[:10]}
 
-def splitting(docs: List[Document], splitter_kwargs: Dict[str, Any])->List[Document]:    
+def splitting(docs: List[Document], 
+              splitter_kwargs: Dict[str, Any] = config.splitter_kwargs)->List[Document]:    
     text_splitter = RecursiveCharacterTextSplitter(**splitter_kwargs)
     splits = text_splitter.split_documents(docs)
 
@@ -47,7 +52,7 @@ def splitting(docs: List[Document], splitter_kwargs: Dict[str, Any])->List[Docum
 
     return splits
 
-def get_embedding(model_name):
+def get_embedding(model_name = config.embedding_model):
     if model_name:
         model_kwargs = {'device': 'cpu'}
         encode_kwargs = {'normalize_embeddings': True}
@@ -59,9 +64,9 @@ def get_embedding(model_name):
 
     return emb_model
 
-def get_vectorstore(chroma_collection_name: str,
-                    distance_fn: str,
-                    model_name: str)->VectorStore:
+def get_vectorstore(chroma_collection_name: str = config.chroma_collection_name,
+                    distance_fn: str = config.distance_fn,
+                    model_name: str = config.embedding_model)->VectorStore:
     
     # connect to Chroma client
     client = chromadb.PersistentClient()
@@ -74,15 +79,9 @@ def get_vectorstore(chroma_collection_name: str,
     return langchain_chroma
 
 def main():
-    config = yaml.load(open("indexing.yaml","r"), Loader=yaml.FullLoader)
-    pprint(config)
-    config = Config(**config)
-    docs = get_documents(data_dir=config.data_dir)
-    chunks = splitting(docs, splitter_kwargs=config.splitter_kwargs)
-    vectorstore = get_vectorstore(chroma_collection_name=config.chroma_collection_name,
-                                  model_name=config.embedding_model,
-                                  distance_fn=config.distance_fn)
-    
+    docs = get_documents()
+    chunks = splitting(docs)
+    vectorstore = get_vectorstore()
     vectorstore.add_documents(chunks)
     print(f"{len(chunks)} chunks added")
 
