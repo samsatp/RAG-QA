@@ -1,7 +1,7 @@
 
 
 from pydantic import BaseModel
-from generating import config as generating_config
+from RAG.generating import config as generating_config
 
 import pandas as pd
 

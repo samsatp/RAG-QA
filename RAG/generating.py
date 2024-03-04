@@ -1,16 +1,25 @@
 from pydantic import BaseModel
 from pprint import pprint
 from typing import List
-import sys, yaml
+import sys, yaml, os
 import pandas as pd
 
-from retrieval import config as retrieval_config
+from RAG.retrieval import config as retrieval_config
 from langchain_core.documents.base import Document
 
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
-tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-base")
-model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-base")
+class Config(BaseModel):
+    model_name: str 
+
+config_path = os.path.join('RAG','config','generating.yaml')
+config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
+print('GENERATING CONFIG')
+pprint(config)
+config = Config(**config)
+
+tokenizer = T5Tokenizer.from_pretrained(config.model_name)
+model = T5ForConditionalGeneration.from_pretrained(config.model_name)
 
 
 def generate(q: str, docs: List[Document])->str:
