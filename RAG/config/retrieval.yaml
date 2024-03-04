@@ -1,2 +1,2 @@
-query_file: "question.xlsx"
+query_file: "data/covid/dataset.xlsx"
 k: 3

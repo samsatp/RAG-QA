@@ -35,9 +35,9 @@ def main():
     df = pd.read_excel(retrieval_config.query_file)
     answers = []
     for row in df.to_dict('records'): 
-        answer = generate(row[DF_COL_NAMES.questions], row[DF_COL_NAMES.retrieved_docs])
+        answer = generate(row[DF_COL_NAMES.questions.value], row[DF_COL_NAMES.retrieved_docs.value])
         answers.append(answer)
-    df[DF_COL_NAMES.answers] = answers
+    df[DF_COL_NAMES.answers.value] = answers
     df.to_excel(retrieval_config.query_file, index=False)
     print(f"{len(answers)} questions answered")
 

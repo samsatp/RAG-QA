@@ -7,3 +7,6 @@ class DF_COL_NAMES(Enum):
     questions = 'questions'
     retrieved_docs = 'retrieved_docs'
     answers = 'answers'
+
+    def __str__(self):
+        return self.name

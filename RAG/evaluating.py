@@ -21,14 +21,18 @@ class Evaluator(ABC):
 
 class RetrievalEvaluator(Evaluator):
 
+    @staticmethod
+    def is_positive(actual_context:str, retrieved_doc:str)->bool:
+        return
+
     def set_data(self):
         """
         For a query, there are K retrieved chunks.
         This method tags if a chunk is relevant to the query
         """
         df = pd.read_excel(self.config.query_file)
-        for row in df.to_dict('records'):
-            row['']
+        for i, row in enumerate(df.to_dict('records')):
+            self.is_positive()
 
 
     def recall_at_k(self):

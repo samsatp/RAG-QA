@@ -1,7 +1,7 @@
-data_dir: "data"
-chroma_collection_name: "chroma-demo"
+data_dir: "data/covid"
+chroma_collection_name: "covid"
 distance_fn: "ip"
 embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
 splitter_kwargs:
-  chunk_size: 30
-  chunk_overlap: 20
+  chunk_size: 500
+  chunk_overlap: 100

@@ -35,8 +35,9 @@ config = Config(**config)
 def get_documents(data_dir: os.PathLike = config.data_dir)->List[Document]:
     docs = []
     for f in os.listdir(data_dir):
-        loader = TextLoader(os.path.join(data_dir,f))
-        docs.extend(loader.load())
+        if f.endswith('.txt'):
+            loader = TextLoader(os.path.join(data_dir,f))
+            docs.extend(loader.load())
     return docs
 
 def extract_meta(text: str)->Dict[str,str]:

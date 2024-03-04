@@ -33,16 +33,18 @@ def rerank_docs(docs: List[str])->List[str]:
 
 def main():
     df = pd.read_excel(config.query_file)
-    queries = df[DF_COL_NAMES.questions].apply(process_query)
-
+    queries = df[DF_COL_NAMES.questions.value].apply(process_query)
+    print(f'total queries: {len(queries)}')
     relevant_docs_list = []
-    for query in queries.values: 
+    for i, query in enumerate(queries.values): 
         relevant_docs = get_relevant_documents(query, k=config.k)
         relevant_docs = [process_doc(_) for _ in relevant_docs]
         relevant_docs = rerank_docs(relevant_docs)
         relevant_docs_list.append(relevant_docs)
+
+        print(f'{i} queries processed')
         
-    df[DF_COL_NAMES.retrieved_docs] = relevant_docs_list
+    df[DF_COL_NAMES.retrieved_docs.value] = relevant_docs_list
     df.to_excel(config.query_file, index=False)
     print(f"{len(relevant_docs_list)} retrieved")
 
