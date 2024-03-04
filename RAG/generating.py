@@ -5,6 +5,7 @@ import sys, yaml, os
 import pandas as pd
 
 from RAG.retrieval import config as retrieval_config
+from RAG import DF_COL_NAMES
 from langchain_core.documents.base import Document
 
 from transformers import T5Tokenizer, T5ForConditionalGeneration
@@ -34,9 +35,9 @@ def main():
     df = pd.read_excel(retrieval_config.query_file)
     answers = []
     for row in df.to_dict('records'): 
-        answer = generate(row['question'], row['relevant_docs'])
+        answer = generate(row[DF_COL_NAMES.questions], row[DF_COL_NAMES.retrieved_docs])
         answers.append(answer)
-    df['answer'] = answers
+    df[DF_COL_NAMES.answers] = answers
     df.to_excel(retrieval_config.query_file, index=False)
     print(f"{len(answers)} questions answered")
 
