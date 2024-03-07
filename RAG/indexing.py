@@ -8,6 +8,7 @@ from pprint import pprint
 import chromadb
 import yaml
 import os
+import re
 
 from langchain_core.documents.base import Document
 from langchain.vectorstores.base import VectorStore
@@ -17,7 +18,7 @@ from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import FakeEmbeddings, HuggingFaceEmbeddings
 from langchain_community.vectorstores.chroma import Chroma
-
+from utils import is_context_of
 
 class Config(BaseModel):
     data_dir: str
@@ -32,16 +33,55 @@ print('INDEXING CONFIG')
 pprint(config)
 config = Config(**config)
 
+
+def preprocess_text(text: str)->str:
+    
+    # remove any big crump of strings
+    text = re.sub(r"\S{20,}"," ",text)
+
+    # remove citation numbers
+    text = re.sub(r"\[(\d,?\s?-?)+\]"," ",text)
+    
+    # remove percentage in parenthses e.g. (20%)
+    text = re.sub(r"\((\d+%;?\s?)+\)"," ",text)
+
+    # remove everything in any parenthesis
+    text = re.sub(r"\(([^)]+)\)"," ",text)
+
+    # remove all Latex tags
+    text = re.sub(r"\\(\w+)([\{\[][^}]+\})+"," ",text)
+
+    # remove big non-character crumps (including special characters like \n, \t)
+    text = re.sub(r"[^a-zA-Z]{20,}"," ",text)
+
+    return text
+
+
 def get_documents(data_dir: os.PathLike = config.data_dir)->List[Document]:
-    docs = []
+    output = []
     for f in os.listdir(data_dir):
         if f.endswith('.txt'):
             loader = TextLoader(os.path.join(data_dir,f))
-            docs.extend(loader.load())
-    return docs
+            docs = loader.load()
+            for doc in docs:
+                doc.page_content = preprocess_text(text=doc.page_content)
+                output.append(doc)
+    return output
 
-def extract_meta(text: str)->Dict[str,str]:
-    return {'meta1':text[:10]}
+def extract_meta(chunk: Document)->Dict[str,str]:
+    """
+    metadata
+    - source: a source path of this chunk (auto-added)
+
+    - is_context_of: a list of question_id
+        iterate over covid/dataset.xlsx and tag which context this chunk is a part of
+    """
+    meta = {}
+    #import pandas as pd
+    #df = pd.read_excel('data/covid/dataset_with_ids.xlsx')
+    #df = df[df['source']==chunk.metadata['source']]
+    #meta['is_context_of'] = is_context_of(chunk, df)
+    return meta
 
 def splitting(docs: List[Document], 
               splitter_kwargs: Dict[str, Any] = config.splitter_kwargs)->List[Document]:    
@@ -49,7 +89,7 @@ def splitting(docs: List[Document],
     splits = text_splitter.split_documents(docs)
 
     for idx, split in enumerate(splits):
-        for k, v in extract_meta(split.page_content).items():
+        for k, v in extract_meta(split).items():
             splits[idx].metadata[k] = v
 
     return splits

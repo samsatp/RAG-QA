@@ -8,7 +8,8 @@ if __name__=='__main__':
         indexing_main()
     elif command == 'retrieval':
         from RAG.retrieval import main as retrieval_main
-        retrieval_main()
+        n_queries = int(sys.argv[2])
+        retrieval_main(n_queries=n_queries)
     elif command == 'generating':
         from RAG.generating import main as generating_main
         generating_main()

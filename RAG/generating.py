@@ -25,6 +25,12 @@ model = T5ForConditionalGeneration.from_pretrained(config.model_name)
 
 def generate(q: str, docs: List[Document])->str:
     input_text = f"Answer this question: {q}"
+    """
+    archive prompt
+    Context: ... 
+    Q: ...
+    A:
+    """
     input_ids = tokenizer(input_text, return_tensors="pt")
 
     outputs = model.generate(**input_ids)
@@ -37,7 +43,7 @@ def main():
     for row in df.to_dict('records'): 
         answer = generate(row[DF_COL_NAMES.questions.value], row[DF_COL_NAMES.retrieved_docs.value])
         answers.append(answer)
-    df[DF_COL_NAMES.answers.value] = answers
+    df[DF_COL_NAMES.generated_answers.value] = answers
     df.to_excel(retrieval_config.query_file, index=False)
     print(f"{len(answers)} questions answered")
 

@@ -1,2 +1,2 @@
-query_file: "data/covid/dataset.xlsx"
-k: 3
+query_file: "data/covid/dataset_with_ids.xlsx"
+k: 4

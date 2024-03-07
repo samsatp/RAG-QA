@@ -1,7 +1,7 @@
 data_dir: "data/covid"
-chroma_collection_name: "covid"
+chroma_collection_name: "covid_baai"
 distance_fn: "ip"
-embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+embedding_model: "BAAI/bge-base-en-v1.5"
 splitter_kwargs:
   chunk_size: 500
   chunk_overlap: 100
