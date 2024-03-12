@@ -1,40 +1,75 @@
+from typing import List, Dict
+from dataclasses import dataclass
+import numpy as np
+
+from sentence_transformers import CrossEncoder
+import evaluate
+
+@dataclass
+class Evaluator:
+    # passage retrieval encoder
+    pr_crossEnc = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", max_length=512)
+    
+    # semantic textual similarity encoder
+    sts_crossEnc = CrossEncoder("cross-encoder/stsb-roberta-base")
+
+    rouge = evaluate.load('rouge', rouge_types=['rouge1', 'rouge2', 'rougeL', 'rougeLsum'], use_aggregator=True, use_stemmer=True)
+    bleu = evaluate.load('bleu', max_order=4, smooth=False)
+    meteor = evaluate.load('meteor')
 
 
-from pydantic import BaseModel
-from RAG.generating import config as generating_config
-from abc import abstractmethod, ABC
+    def get_stats(self, name:str, scores:np.ndarray)->Dict[str,float]:
+        return {f'{name}_raw':scores,
+                f'{name}_mean':np.mean(scores),
+                f'{name}_median':np.median(scores),
+                f'{name}_std':np.std(scores),
+                f'{name}_min':np.min(scores),
+                f'{name}_max':np.max(scores)}
 
-import pandas as pd
-
-class Evaluator(ABC):
-    def __init__(self, config=generating_config):
-        self.config = config
-        self.data = []
-
-    @abstractmethod
-    def set_data(self):
-        ...
-
-    @abstractmethod
-    def make_report(self):
-        ...
-
-class RetrievalEvaluator(Evaluator):
-
-    @staticmethod
-    def is_positive(actual_context:str, retrieved_doc:str)->bool:
-        return
-
-    def set_data(self):
+    def eval_lexical(self, predictions: List[str], references: List[str])->Dict[str,float]:
         """
-        For a query, there are K retrieved chunks.
-        This method tags if a chunk is relevant to the query
+        Lexical-based metrics
+        - BLEU: N-gram overlap precision
+        - ROUGE: N-gram overlap f1 
+        - METEOR: F1 of the alignment matching with a chunk distribution penalty
+
+        This function can evaluate:
+        - gold-standard answers Vs. generated answers
+        - gold-standard context Vs. retrieved context chunks 
         """
-        df = pd.read_excel(self.config.query_file)
-        for i, row in enumerate(df.to_dict('records')):
-            self.is_positive()
+        lexical_metrics = [self.bleu,self.rouge,self.meteor]
+        metrics = evaluate.combine(lexical_metrics, force_prefix=True)
+        results = metrics.compute(predictions=predictions, references=references)
+        return results
 
+    # semantic based
+    def eval_semantic(self, predictions: List[str], references: List[str])->Dict[str,float]:
+        """
+        Semantic-based metric: use cross-encoder model trained on STS
+        https://www.sbert.net/docs/pretrained_cross-encoders.html#stsbenchmark
 
+        This function can evaluate:
+        - gold-standard answers Vs. generated answers
+        - gold-standard context Vs. retrieved context chunks 
+        """
+        data = list(zip(predictions, references))
+        sts_scores = self.sts_crossEnc.predict(data)
+        return self.get_stats('sts', sts_scores)
+
+    # semantic based
+    def eval_retrieval(self, questions: List[str], retrieved_chunks: List[str])->Dict[str,float]:
+        """
+        Semantis-based metric: use cross-encoder model trained on MS Marcro Passage Retrieval
+        https://www.sbert.net/docs/pretrained_cross-encoders.html#ms-marco
+
+        This function can evaluate:
+        - retrieved context chunks (using questions and the retrieved context chunks as inputs)
+        """
+        data = list(zip(questions, retrieved_chunks))
+        pr_scores = self.pr_crossEnc.predict(data)
+        return self.get_stats('retrieval', pr_scores)
+    
+    # retrieval based
     def recall_at_k(self):
         return
     
@@ -49,3 +84,4 @@ class RetrievalEvaluator(Evaluator):
     
     def ndcg_at_k(self):
         return
+    
