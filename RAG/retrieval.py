@@ -13,8 +13,8 @@ class Config(BaseModel):
     query_file: str # xlsx file
     k: int
 
-config_path = os.path.join('RAG','config','retrieval.yaml')
-config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
+config_path = os.path.join('RAG','config.yaml')
+config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)['retrieval']
 print('RETRIEVAL CONFIG')
 pprint(config)
 config = Config(**config)

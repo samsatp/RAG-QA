@@ -69,19 +69,3 @@ class Evaluator:
         pr_scores = self.pr_crossEnc.predict(data)
         return self.get_stats('retrieval', pr_scores)
     
-    # retrieval based
-    def recall_at_k(self):
-        return
-    
-    def precision_at_k(self):
-        return
-    
-    def mean_reciprocal_rank(self):
-        return
-    
-    def mean_avg_precision(self):
-        return
-    
-    def ndcg_at_k(self):
-        return
-    

@@ -27,8 +27,8 @@ class Config(BaseModel):
     embedding_model: str
     splitter_kwargs: Dict[str, Any]
 
-config_path = os.path.join('RAG','config','indexing.yaml')
-config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
+config_path = os.path.join('RAG','config.yaml')
+config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)['indexing']
 print('INDEXING CONFIG')
 pprint(config)
 config = Config(**config)

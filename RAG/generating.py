@@ -13,8 +13,8 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 class Config(BaseModel):
     model_name: str 
 
-config_path = os.path.join('RAG','config','generating.yaml')
-config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
+config_path = os.path.join('RAG','config.yaml')
+config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)['generating']
 print('GENERATING CONFIG')
 pprint(config)
 config = Config(**config)
