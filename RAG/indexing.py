@@ -19,20 +19,19 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import FakeEmbeddings, HuggingFaceEmbeddings
 from langchain_community.vectorstores.chroma import Chroma
 from utils import is_context_of
+from RAG import indexing_database
 
 class Config(BaseModel):
     data_dir: str
-    chroma_collection_name: str
     distance_fn: str
     embedding_model: str
     splitter_kwargs: Dict[str, Any]
 
-config_path = os.path.join('RAG','config.yaml')
-config = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)['indexing']
+config_path = os.path.join('RAG','config','indexing.yaml')
+config_dict = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
 print('INDEXING CONFIG')
-pprint(config)
-config = Config(**config)
-
+pprint(config_dict)
+config = Config(**config_dict)
 
 def preprocess_text(text: str)->str:
     
@@ -106,7 +105,7 @@ def get_embedding(model_name = config.embedding_model):
 
     return emb_model
 
-def get_vectorstore(chroma_collection_name: str = config.chroma_collection_name,
+def get_vectorstore(chroma_collection_name: str,
                     distance_fn: str = config.distance_fn,
                     model_name: str = config.embedding_model)->VectorStore:
     
@@ -121,9 +120,10 @@ def get_vectorstore(chroma_collection_name: str = config.chroma_collection_name,
     return langchain_chroma
 
 def main():
+    collection_name = indexing_database.new_entry(config.model_dump())
     docs = get_documents()
     chunks = splitting(docs)
-    vectorstore = get_vectorstore()
+    vectorstore = get_vectorstore(collection_name)
     vectorstore.add_documents(chunks)
     print(f"{len(chunks)} chunks added")
 

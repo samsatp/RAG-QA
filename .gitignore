@@ -6,3 +6,5 @@ data
 **/__pycache__
 *.xlsx
 scratch
+RAG/db
+RAG/config

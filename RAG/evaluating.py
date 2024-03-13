@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from sentence_transformers import CrossEncoder
+from RAG import config
 import evaluate
 
 @dataclass
