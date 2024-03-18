@@ -5,9 +5,10 @@ import sys, yaml, os
 import pandas as pd
 
 from RAG.indexing import get_vectorstore
-from RAG import DF_COL_NAMES, retrieval_database
+from RAG import DF_COL_NAMES, retrieval_database, indexing_database
 from utils import get_context_chunks, get_chunk_id
 from langchain_core.documents.base import Document
+from langchain.vectorstores.base import VectorStore
 
 
 class Config(BaseModel):
@@ -23,10 +24,9 @@ config = Config(**config_dict)
 
 
 def get_relevant_documents(query: str, 
-                           k=config.k, 
-                           collection_name=config.collection_name
+                           k: int,
+                           vectorstore: VectorStore 
                            )->Tuple[List[Document], List[str]]:
-    vectorstore = get_vectorstore(collection_name)
     documents = vectorstore.similarity_search(query, k, filter=None)
     doc_ids = [get_chunk_id(doc.page_content, vectorstore) for doc in documents]
     return documents, doc_ids
@@ -41,7 +41,14 @@ def rerank_docs(docs: List[str], doc_ids: List[str])->List[str]:
     return docs, doc_ids
 
 def main():
-    new_id = retrieval_database.new_entry(config.model_dump())
+    # fetch indexing metadata, so the vectorstore config is consistant
+    indexing_meta = indexing_database.get(key=config.collection_name)
+    vectorstore = get_vectorstore(chroma_collection_name=config.collection_name,
+                                  distance_fn=indexing_meta['distance_fn'],
+                                  embedding_model=indexing_meta['embedding_model'])
+    
+    new_id = retrieval_database.new_entry(**indexing_meta, **config.model_dump())
+    
     df = pd.read_excel(config.question_file)
     queries = df[DF_COL_NAMES.questions.value].apply(process_query)
     print(f'total queries: {len(queries)}')
@@ -49,15 +56,19 @@ def main():
     # retrieve relevant docs for each question
     relevant_docs_list = []
     doc_ids_list = []
+    
     for i, query in enumerate(queries.values): 
-        relevant_docs, doc_ids = get_relevant_documents(query)
+        relevant_docs, doc_ids = get_relevant_documents(query=query,
+                                                        k=config.k,
+                                                        vectorstore=vectorstore)
         relevant_docs = [process_doc(_) for _ in relevant_docs]
         relevant_docs, doc_ids = rerank_docs(relevant_docs, doc_ids)
 
         relevant_docs_list.append(relevant_docs)
         doc_ids_list.append(doc_ids)
 
-        print(f'{i} queries processed')
+        if i%500==0:
+            print(f'{i} queries processed')
 
     # attach context chunks
     """ if DF_COL_NAMES.context_chunk_ids.value not in df.columns:

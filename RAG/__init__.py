@@ -38,8 +38,11 @@ class RAG_database:
             df.to_csv(self.db_path)
         
         self.df = pd.read_csv(self.db_path, index_col=self.pk_name)
+
+    def get(self, key)->dict:
+        return self.df.loc[key].to_dict()
     
-    def new_entry(self, values: Dict[str,Any])->str:
+    def new_entry(self, **values: Dict[str,Any])->str:
         for k in values.keys():
             if k not in self.df.columns:
                 self.df[k] = None
@@ -48,33 +51,38 @@ class RAG_database:
         self.df.to_csv(self.db_path)
         self.df = pd.read_csv(self.db_path, index_col=self.pk_name)
         return new_id
+    
+    def update(self, key, column, value):
+        self.df.loc[key, column] = value
+        self.df.to_csv(self.db_path)
+        self.df = pd.read_csv(self.db_path, index_col=self.pk_name)
 
 
 indexing_database = RAG_database(
     db_file = 'indexing.csv', 
     pk_name = 'collection',  # use 'collection' as PK because one indexing run will create a new Chroma collection
-    columns = ['distance_fn','embedding_model','splitter_kwargs','query_file','k','generating_model']
+    columns = ['status','distance_fn','embedding_model','splitter_kwargs','chunks_added']
 )
 
 retrieval_database = RAG_database(
     db_file = 'retrieval.csv',
     pk_name = 'retrieval_file',
-    columns = ['collection','question_file','k']
+    columns = ['status','collection','question_file','k']
 )
 
 answer_database = RAG_database(
     db_file = 'answer.csv',
     pk_name = 'answer_file',
-    columns = ['retrieval_file', 'generating_model']
+    columns = ['status','retrieval_file', 'generating_model']
 )
 
 score_database = RAG_database(
     db_file = 'score.csv',
     pk_name = 'score',
-    columns = [# Lexical metrics
+    columns = ['status',
+                # Lexical metrics
                'bleu_bleu','rouge_rouge1','rouge_rouge2','rouge_rougeL','rouge_rougeLsum','meteor_meteor',
                # Semantic similarity metrics
                'sts_mean','sts_median','sts_std','sts_min','sts_max',
-               # Reranking metrics
-               'retrieval_mean','retrieval_median','retrieval_std','retrieval_min','retrieval_max']
+               ]
 )

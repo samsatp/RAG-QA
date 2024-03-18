@@ -9,6 +9,7 @@ import chromadb
 import yaml
 import os
 import re
+import pickle
 
 from langchain_core.documents.base import Document
 from langchain.vectorstores.base import VectorStore
@@ -56,15 +57,26 @@ def preprocess_text(text: str)->str:
     return text
 
 
-def get_documents(data_dir: os.PathLike = config.data_dir)->List[Document]:
-    output = []
-    for f in os.listdir(data_dir):
-        if f.endswith('.txt'):
-            loader = TextLoader(os.path.join(data_dir,f))
-            docs = loader.load()
-            for doc in docs:
-                doc.page_content = preprocess_text(text=doc.page_content)
-                output.append(doc)
+def get_documents(data_dir)->List[Document]:
+    """
+    if the config.data_dir is a directory, process the data, save, and return as List[Document] \n
+    if ... a pickle file, read and return that pickle file
+    """
+
+    if not config.data_dir.endswith('.pkl'):
+        output = []
+        for f in os.listdir(data_dir):
+            if f.endswith('.txt'):
+                loader = TextLoader(os.path.join(data_dir,f))
+                docs = loader.load()
+                for doc in docs:
+                    doc.page_content = preprocess_text(text=doc.page_content)
+                    output.append(doc)
+        pickle.dump(output, open(config.data_dir+'.pkl','wb'))
+        print('saved new pickle')
+
+    else:
+        output = pickle.load(open(config.data_dir, 'rb'))    
     return output
 
 def extract_meta(chunk: Document)->Dict[str,str]:
@@ -83,8 +95,15 @@ def extract_meta(chunk: Document)->Dict[str,str]:
     return meta
 
 def splitting(docs: List[Document], 
-              splitter_kwargs: Dict[str, Any] = config.splitter_kwargs)->List[Document]:    
-    text_splitter = RecursiveCharacterTextSplitter(**splitter_kwargs)
+              splitter_kwargs: Dict[str, Any])->List[Document]:    
+    
+    chunk_size=int(splitter_kwargs['chunk_size'])
+    chunk_overlap=int(float(splitter_kwargs['chunk_overlap'])*chunk_size)
+
+    print(f'{chunk_size=}')
+    print(f'{chunk_overlap=}')
+    
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     splits = text_splitter.split_documents(docs)
 
     for idx, split in enumerate(splits):
@@ -93,7 +112,7 @@ def splitting(docs: List[Document],
 
     return splits
 
-def get_embedding(model_name = config.embedding_model):
+def get_embedding(model_name: str):
     if model_name:
         model_kwargs = {'device': 'cpu'}
         encode_kwargs = {'normalize_embeddings': True}
@@ -106,8 +125,8 @@ def get_embedding(model_name = config.embedding_model):
     return emb_model
 
 def get_vectorstore(chroma_collection_name: str,
-                    distance_fn: str = config.distance_fn,
-                    model_name: str = config.embedding_model)->VectorStore:
+                    distance_fn: str,
+                    embedding_model: str)->VectorStore:
     
     # connect to Chroma client
     client = chromadb.PersistentClient()
@@ -115,16 +134,26 @@ def get_vectorstore(chroma_collection_name: str,
     # Langchain Chroma wrapper
     langchain_chroma = Chroma(client=client,
                               collection_name=chroma_collection_name,
-                              embedding_function=get_embedding(model_name),
-                              collection_metadata={"hnsw:space": distance_fn})    
+                              embedding_function=get_embedding(embedding_model),
+                              collection_metadata={"hnsw:space": distance_fn})  
+    print(f"{langchain_chroma._embedding_function=}")  
+    print(f"{langchain_chroma._collection.name=}")  
+    print(f"{langchain_chroma._collection.metadata=}")  
     return langchain_chroma
 
 def main():
     collection_name = indexing_database.new_entry(config.model_dump())
-    docs = get_documents()
-    chunks = splitting(docs)
-    vectorstore = get_vectorstore(collection_name)
+    docs = get_documents(data_dir=config.data_dir)
+    chunks = splitting(docs=docs,
+                       splitter_kwargs=config.splitter_kwargs)
+    vectorstore = get_vectorstore(chroma_collection_name=collection_name,
+                                  distance_fn=config.distance_fn,
+                                  embedding_model=config.embedding_model)
     vectorstore.add_documents(chunks)
+
+    indexing_database.update(key=collection_name, column='status', value=1)
+    indexing_database.update(key=collection_name, column='chunks_add', value=len(chunks))
+
     print(f"{len(chunks)} chunks added")
 
 if __name__=='__main__':

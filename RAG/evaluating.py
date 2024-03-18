@@ -9,7 +9,7 @@ import evaluate
 @dataclass
 class Evaluator:
     # passage retrieval encoder
-    pr_crossEnc = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", max_length=512)
+    # pr_crossEnc = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", max_length=512)
     
     # semantic textual similarity encoder
     sts_crossEnc = CrossEncoder("cross-encoder/stsb-roberta-base")
@@ -58,15 +58,15 @@ class Evaluator:
         return self.get_stats('sts', sts_scores)
 
     # semantic based
-    def eval_retrieval(self, questions: List[str], retrieved_chunks: List[str])->Dict[str,float]:
-        """
-        Semantis-based metric: use cross-encoder model trained on MS Marcro Passage Retrieval
-        https://www.sbert.net/docs/pretrained_cross-encoders.html#ms-marco
-
-        This function can evaluate:
-        - retrieved context chunks (using questions and the retrieved context chunks as inputs)
-        """
-        data = list(zip(questions, retrieved_chunks))
-        pr_scores = self.pr_crossEnc.predict(data)
-        return self.get_stats('retrieval', pr_scores)
+    #def eval_retrieval(self, questions: List[str], retrieved_chunks: List[str])->Dict[str,float]:
+    #    """
+    #    Semantis-based metric: use cross-encoder model trained on MS Marcro Passage Retrieval
+    #    https://www.sbert.net/docs/pretrained_cross-encoders.html#ms-marco
+    #
+    #    This function can evaluate:
+    #    - retrieved context chunks (using questions and the retrieved context chunks as inputs)
+    #    """
+    #    data = list(zip(questions, retrieved_chunks))
+    #    pr_scores = self.pr_crossEnc.predict(data)
+    #    return self.get_stats('retrieval', pr_scores)
     
