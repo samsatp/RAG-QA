@@ -1,9 +1,10 @@
 from typing import List, Dict
 from dataclasses import dataclass
 import numpy as np
+import pandas as pd
+import sys
 
 from sentence_transformers import CrossEncoder
-from RAG import config
 import evaluate
 
 @dataclass
@@ -20,8 +21,7 @@ class Evaluator:
 
 
     def get_stats(self, name:str, scores:np.ndarray)->Dict[str,float]:
-        return {f'{name}_raw':scores,
-                f'{name}_mean':np.mean(scores),
+        return {f'{name}_mean':np.mean(scores),
                 f'{name}_median':np.median(scores),
                 f'{name}_std':np.std(scores),
                 f'{name}_min':np.min(scores),
@@ -69,4 +69,16 @@ class Evaluator:
     #    data = list(zip(questions, retrieved_chunks))
     #    pr_scores = self.pr_crossEnc.predict(data)
     #    return self.get_stats('retrieval', pr_scores)
+    
+def main(predictions: List[str], references: List[str]):
+    evaluator = Evaluator()
+    lexical_metrics = evaluator.eval_lexical(predictions, references)
+    semantic_metrics = evaluator.eval_semantic(predictions, references)
+
+    meta = {'n_questions':len(predictions)}
+    return dict(**lexical_metrics, **semantic_metrics, **meta)
+
+if __name__=='__main__':
+    answer_sheet = sys.argv[1]
+    main(answer_sheet)
     

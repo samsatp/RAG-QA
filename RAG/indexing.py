@@ -28,11 +28,6 @@ class Config(BaseModel):
     embedding_model: str
     splitter_kwargs: Dict[str, Any]
 
-config_path = os.path.join('RAG','config','indexing.yaml')
-config_dict = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
-print('INDEXING CONFIG')
-pprint(config_dict)
-config = Config(**config_dict)
 
 def preprocess_text(text: str)->str:
     
@@ -57,7 +52,7 @@ def preprocess_text(text: str)->str:
     return text
 
 
-def get_documents(data_dir)->List[Document]:
+def get_documents(config: Config)->List[Document]:
     """
     if the config.data_dir is a directory, process the data, save, and return as List[Document] \n
     if ... a pickle file, read and return that pickle file
@@ -65,9 +60,9 @@ def get_documents(data_dir)->List[Document]:
 
     if not config.data_dir.endswith('.pkl'):
         output = []
-        for f in os.listdir(data_dir):
+        for f in os.listdir(config.data_dir):
             if f.endswith('.txt'):
-                loader = TextLoader(os.path.join(data_dir,f))
+                loader = TextLoader(os.path.join(config.data_dir,f))
                 docs = loader.load()
                 for doc in docs:
                     doc.page_content = preprocess_text(text=doc.page_content)
@@ -136,13 +131,20 @@ def get_vectorstore(chroma_collection_name: str,
                               collection_name=chroma_collection_name,
                               embedding_function=get_embedding(embedding_model),
                               collection_metadata={"hnsw:space": distance_fn})  
-    print(f"{langchain_chroma._embedding_function=}")  
+    print(f"{langchain_chroma._embedding_function.model_name=}")  
     print(f"{langchain_chroma._collection.name=}")  
     print(f"{langchain_chroma._collection.metadata=}")  
     return langchain_chroma
 
 def main():
-    collection_name = indexing_database.new_entry(config.model_dump())
+
+    config_path = os.path.join('RAG','config','indexing.yaml')
+    config_dict = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
+    print('INDEXING CONFIG')
+    pprint(config_dict)
+    config = Config(**config_dict)
+
+    collection_name = indexing_database.new_entry(**config.model_dump())
     docs = get_documents(data_dir=config.data_dir)
     chunks = splitting(docs=docs,
                        splitter_kwargs=config.splitter_kwargs)

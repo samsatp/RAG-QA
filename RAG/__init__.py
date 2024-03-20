@@ -29,6 +29,7 @@ class RAG_database:
     columns: List[str]
     base_dir = os.path.join('RAG','db')
     os.makedirs(base_dir, exist_ok=True)
+    os.makedirs(os.path.join('RAG','results'), exist_ok=True)
 
     def __post_init__(self):
         self.db_path = os.path.join(self.base_dir, self.db_file)
@@ -40,7 +41,8 @@ class RAG_database:
         self.df = pd.read_csv(self.db_path, index_col=self.pk_name)
 
     def get(self, key)->dict:
-        return self.df.loc[key].to_dict()
+        dat = self.df.loc[key].to_dict()
+        return dat
     
     def new_entry(self, **values: Dict[str,Any])->str:
         for k in values.keys():
@@ -73,13 +75,7 @@ retrieval_database = RAG_database(
 answer_database = RAG_database(
     db_file = 'answer.csv',
     pk_name = 'answer_file',
-    columns = ['status','retrieval_file', 'generating_model']
-)
-
-score_database = RAG_database(
-    db_file = 'score.csv',
-    pk_name = 'score',
-    columns = ['status',
+    columns = ['status','retrieval_file', 'generating_model',
                 # Lexical metrics
                'bleu_bleu','rouge_rouge1','rouge_rouge2','rouge_rougeL','rouge_rougeLsum','meteor_meteor',
                # Semantic similarity metrics
