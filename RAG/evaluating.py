@@ -5,6 +5,7 @@ import pandas as pd
 import sys
 
 from sentence_transformers import CrossEncoder
+from RAG import DF_COL_NAMES
 import evaluate
 
 @dataclass
@@ -27,7 +28,7 @@ class Evaluator:
                 f'{name}_min':np.min(scores),
                 f'{name}_max':np.max(scores)}
 
-    def eval_lexical(self, predictions: List[str], references: List[str])->Dict[str,float]:
+    def eval_lexical(self, prediction: str, reference: str)->Dict[str,float]:
         """
         Lexical-based metrics
         - BLEU: N-gram overlap precision
@@ -38,13 +39,16 @@ class Evaluator:
         - gold-standard answers Vs. generated answers
         - gold-standard context Vs. retrieved context chunks 
         """
+        if len(prediction)==0:
+            prediction = 'x'
         lexical_metrics = [self.bleu,self.rouge,self.meteor]
         metrics = evaluate.combine(lexical_metrics, force_prefix=True)
-        results = metrics.compute(predictions=predictions, references=references)
+        results = metrics.compute(predictions=[prediction], references=[reference])
+        results.pop('bleu_precisions')
         return results
 
     # semantic based
-    def eval_semantic(self, predictions: List[str], references: List[str])->Dict[str,float]:
+    def eval_semantic(self, prediction: str, reference: str)->Dict[str,float]:
         """
         Semantic-based metric: use cross-encoder model trained on STS
         https://www.sbert.net/docs/pretrained_cross-encoders.html#stsbenchmark
@@ -53,9 +57,7 @@ class Evaluator:
         - gold-standard answers Vs. generated answers
         - gold-standard context Vs. retrieved context chunks 
         """
-        data = list(zip(predictions, references))
-        sts_scores = self.sts_crossEnc.predict(data)
-        return self.get_stats('sts', sts_scores)
+        return {'sts':self.sts_crossEnc.predict([prediction, reference])}
 
     # semantic based
     #def eval_retrieval(self, questions: List[str], retrieved_chunks: List[str])->Dict[str,float]:
@@ -70,15 +72,19 @@ class Evaluator:
     #    pr_scores = self.pr_crossEnc.predict(data)
     #    return self.get_stats('retrieval', pr_scores)
     
-def main(predictions: List[str], references: List[str]):
+def get_metrics_row(prediction: str, reference: str)->Dict[str,float]:
     evaluator = Evaluator()
-    lexical_metrics = evaluator.eval_lexical(predictions, references)
-    semantic_metrics = evaluator.eval_semantic(predictions, references)
+    lexical_metrics = evaluator.eval_lexical(prediction, reference)
+    semantic_metrics = evaluator.eval_semantic(prediction, reference)
+    return dict(**lexical_metrics, **semantic_metrics)
 
-    meta = {'n_questions':len(predictions)}
-    return dict(**lexical_metrics, **semantic_metrics, **meta)
 
-if __name__=='__main__':
-    answer_sheet = sys.argv[1]
-    main(answer_sheet)
+def get_metrics_df(df: pd.DataFrame)->pd.DataFrame:
     
+    metrics = []
+    for row in df.to_dict('records'):
+        metrics.append(get_metrics_row(prediction=row[DF_COL_NAMES.generated_answers.value],
+                                       reference=row[DF_COL_NAMES.answers.value]))
+    metrics = pd.DataFrame(metrics)
+    return metrics
+

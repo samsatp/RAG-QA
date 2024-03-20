@@ -145,7 +145,7 @@ def main():
     config = Config(**config_dict)
 
     collection_name = indexing_database.new_entry(**config.model_dump())
-    docs = get_documents(data_dir=config.data_dir)
+    docs = get_documents(config=config)
     chunks = splitting(docs=docs,
                        splitter_kwargs=config.splitter_kwargs)
     vectorstore = get_vectorstore(chroma_collection_name=collection_name,

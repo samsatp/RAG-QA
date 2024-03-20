@@ -1,12 +1,12 @@
 from pydantic import BaseModel
 from pprint import pprint
 from typing import List
-import sys, yaml, os, ast
+import sys, yaml, os, ast, torch
 import pandas as pd
 
-from RAG.evaluating import main as evaluate_main
+from RAG.evaluating import get_metrics_df
 from RAG import DF_COL_NAMES, answer_database
-from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import T5Tokenizer, T5ForConditionalGeneration, AutoModelForQuestionAnswering, AutoTokenizer
 
 
 class Config(BaseModel):
@@ -16,9 +16,9 @@ class Config(BaseModel):
 
 
 def merge_strings(strings: List[str]):
-    return ' '.join(strings)[:400]
+    return ' '.join(strings)
 
-def generate(q: str, model, tokenizer, docs: List[str]=None)->str:
+def generate(q: str, docs: List[str], model, tokenizer)->str:
     if docs:
         input_text = f"""answer the question based on this context: {merge_strings(docs)} 
         question: {q}
@@ -26,10 +26,21 @@ def generate(q: str, model, tokenizer, docs: List[str]=None)->str:
     else:
         input_text = f"question: {q} answer: "
 
-    input_ids = tokenizer(input_text, return_tensors="pt")
+    if 't5' in model.name_or_path:
+        input_ids = tokenizer(input_text, return_tensors="pt")
+        with torch.no_grad():
+            outputs = model.generate(**input_ids)
+        outputs = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    outputs = model.generate(**input_ids)
-    outputs = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    elif 'deepset/roberta' in model.name_or_path:
+        input_ids = tokenizer(q, merge_strings(docs), return_tensors="pt")
+        with torch.no_grad():
+            outputs = model(**input_ids)
+        answer_start_index = outputs.start_logits.argmax()
+        answer_end_index = outputs.end_logits.argmax()
+
+        predict_answer_tokens = input_ids.input_ids[0, answer_start_index : answer_end_index + 1]
+        outputs = tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
     return outputs
 
 def main(use_context=True):
@@ -40,8 +51,12 @@ def main(use_context=True):
     pprint(config_dict)
     config = Config(**config_dict)
 
-    tokenizer = T5Tokenizer.from_pretrained(config.generating_model)
-    model = T5ForConditionalGeneration.from_pretrained(config.generating_model)
+    if 't5' in config.generating_model:
+        tokenizer = T5Tokenizer.from_pretrained(config.generating_model)
+        model = T5ForConditionalGeneration.from_pretrained(config.generating_model)
+    else:
+        model = AutoModelForQuestionAnswering.from_pretrained(config.generating_model)
+        tokenizer = AutoTokenizer.from_pretrained(config.generating_model)
 
     df = pd.read_excel(config.question_with_context_file)
     df[DF_COL_NAMES.retrieved_docs.value] = df[DF_COL_NAMES.retrieved_docs.value].apply(ast.literal_eval)
@@ -58,7 +73,11 @@ def main(use_context=True):
 
     df[DF_COL_NAMES.generated_answers.value] = answers
 
-    scores = evaluate_main(predictions=df[DF_COL_NAMES.generated_answers.value], references=df[DF_COL_NAMES.answers.value])
+    metrics_df = get_metrics_df(df)
+    df = pd.concat([df, metrics_df], axis=1)
+
+    metrics_df.to_csv('metrics.csv')
+    scores = metrics_df.mean(axis=0).to_dict()
     
     new_id = answer_database.new_entry(**config.model_dump(), **scores)
 
