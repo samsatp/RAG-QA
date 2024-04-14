@@ -4,7 +4,7 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from typing import List, Any, Dict, Callable
 from pydantic import BaseModel
-from pprint import pprint
+from rich import print
 import chromadb
 import yaml
 import os
@@ -26,7 +26,8 @@ class Config(BaseModel):
     data_dir: str
     distance_fn: str
     embedding_model: str
-    splitter_kwargs: Dict[str, Any]
+    chunk_size: int
+    chunk_overlap: float
 
 
 def preprocess_text(text: str)->str:
@@ -90,10 +91,11 @@ def extract_meta(chunk: Document)->Dict[str,str]:
     return meta
 
 def splitting(docs: List[Document], 
-              splitter_kwargs: Dict[str, Any])->List[Document]:    
+              chunk_size: int,
+              chunk_overlap: float)->List[Document]:    
     
-    chunk_size=int(splitter_kwargs['chunk_size'])
-    chunk_overlap=int(float(splitter_kwargs['chunk_overlap'])*chunk_size)
+    chunk_size=int(chunk_size)
+    chunk_overlap=int(float(chunk_overlap)*chunk_size)
 
     print(f'{chunk_size=}')
     print(f'{chunk_overlap=}')
@@ -136,25 +138,31 @@ def get_vectorstore(chroma_collection_name: str,
     print(f"{langchain_chroma._collection.metadata=}")  
     return langchain_chroma
 
-def main():
+def main(data_dir:str, 
+         distance_fn: str, 
+         embedding_model: str, 
+         chunk_size: int, chunk_overlap: float):
 
-    config_path = os.path.join('RAG','config','indexing.yaml')
-    config_dict = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
     print('INDEXING CONFIG')
-    pprint(config_dict)
-    config = Config(**config_dict)
+    config = Config(data_dir=data_dir,
+                    distance_fn=distance_fn,
+                    embedding_model=embedding_model,
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap)
+    print(config)
 
     collection_name = indexing_database.new_entry(**config.model_dump())
     docs = get_documents(config=config)
     chunks = splitting(docs=docs,
-                       splitter_kwargs=config.splitter_kwargs)
+                       chunk_size=chunk_size,
+                       chunk_overlap=chunk_overlap)
     vectorstore = get_vectorstore(chroma_collection_name=collection_name,
                                   distance_fn=config.distance_fn,
                                   embedding_model=config.embedding_model)
     vectorstore.add_documents(chunks)
 
-    indexing_database.update(key=collection_name, column='status', value=1)
-    indexing_database.update(key=collection_name, column='chunks_add', value=len(chunks))
+    indexing_database.update(index=collection_name, key='status', value=1)
+    indexing_database.update(index=collection_name, key='chunks_add', value=len(chunks))
 
     print(f"{len(chunks)} chunks added")
 

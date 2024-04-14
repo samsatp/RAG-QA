@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from pprint import pprint
+from rich import print
 from typing import List, Tuple
 import sys, yaml, os
 import pandas as pd
@@ -21,7 +21,7 @@ def get_relevant_documents(query: str,
                            k: int,
                            vectorstore: VectorStore 
                            )->Tuple[List[Document], List[str]]:
-    if vectorstore._embedding_function.model_name == 'BAAI/bge-base-en-v1.5':
+    if vectorstore._embedding_function.model_name in ['BAAI/bge-base-en-v1.5','mixedbread-ai/mxbai-embed-large-v1']:
         query = 'Represent this sentence for searching relevant passages: ' + query
     documents = vectorstore.similarity_search(query, k, filter=None)
     doc_ids = [get_chunk_id(doc.page_content, vectorstore) for doc in documents]
@@ -36,23 +36,28 @@ def process_doc(doc: Document)->str:
 def rerank_docs(docs: List[str], doc_ids: List[str])->List[str]:
     return docs, doc_ids
 
-def main(frac:float):
+def main(frac:float,
+         question_file:str,
+         collection_name:str,
+         k:int):
 
-    config_path = os.path.join('RAG','config','retrieval.yaml')
-    config_dict = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
     print('RETRIEVAL CONFIG')
-    pprint(config_dict)
-    config = Config(**config_dict)
-
+    config = Config(question_file=question_file,
+                    collection_name=collection_name,
+                    k=k)
+    print(config)
     
     # fetch indexing metadata, so the vectorstore config is consistant
-    indexing_meta = indexing_database.get(key=config.collection_name)
+    indexing_meta = indexing_database.get(index=config.collection_name)
     if not indexing_meta['status']:
         print('using failed collection:',indexing_meta['collection'])
         return
     vectorstore = get_vectorstore(chroma_collection_name=config.collection_name,
                                   distance_fn=indexing_meta['distance_fn'],
                                   embedding_model=indexing_meta['embedding_model'])
+    print('emb. model:',vectorstore._embedding_function.model_name)
+    if vectorstore._embedding_function.model_name in ['BAAI/bge-base-en-v1.5','mixedbread-ai/mxbai-embed-large-v1']:
+        print('\t (use instruction)')
     
     meta = {'embedding_function':vectorstore._embedding_function.model_name,
             'collection_meta':vectorstore._collection.metadata,
@@ -96,8 +101,8 @@ def main(frac:float):
     df.to_excel(result_path, index=False)
     print(f"{len(relevant_docs_list)} retrieved")
 
-    retrieval_database.update(key=new_id, column='status', value=1)
-    retrieval_database.update(key=new_id, column='n_retrieval', value=len(relevant_docs_list))
+    retrieval_database.update(index=new_id, key='status', value=1)
+    retrieval_database.update(index=new_id, key='n_retrieval', value=len(relevant_docs_list))
 
 if __name__ == '__main__':
     main()

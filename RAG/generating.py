@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from pprint import pprint
+from rich import print
 from typing import List
 import sys, yaml, os, ast, torch
 import pandas as pd
@@ -24,7 +24,7 @@ def generate(q: str, docs: List[str], model, tokenizer)->str:
         question: {q}
         answer: """
     else:
-        input_text = f"question: {q} answer: "
+        input_text = f"question: {q} \n answer: "
 
     if 't5' in model.name_or_path:
         input_ids = tokenizer(input_text, return_tensors="pt")
@@ -43,13 +43,13 @@ def generate(q: str, docs: List[str], model, tokenizer)->str:
         outputs = tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
     return outputs
 
-def main(use_context=True):
+def main(question_with_context_file:str,
+         generating_model:str,
+         use_context=True,):
     
-    config_path = os.path.join('RAG','config','generating.yaml')
-    config_dict = yaml.load(open(config_path,"r"), Loader=yaml.FullLoader)
     print('GENERATING CONFIG')
-    pprint(config_dict)
-    config = Config(**config_dict)
+    config = Config(question_with_context_file=question_with_context_file,
+                    generating_model=generating_model)
 
     if 't5' in config.generating_model:
         tokenizer = T5Tokenizer.from_pretrained(config.generating_model)
@@ -65,8 +65,10 @@ def main(use_context=True):
     answers = []
     for row in df.to_dict('records'): 
         if use_context:
+            print('USE CONTEXT')
             answer = generate(row[DF_COL_NAMES.questions.value], row[DF_COL_NAMES.retrieved_docs.value], model, tokenizer)
         else:
+            print('CLOSE-BOOK QA')
             answer = generate(row[DF_COL_NAMES.questions.value], None, model, tokenizer)
             
         answers.append(answer)
