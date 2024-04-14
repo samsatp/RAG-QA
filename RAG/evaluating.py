@@ -10,16 +10,17 @@ import evaluate
 
 @dataclass
 class Evaluator:
-    # passage retrieval encoder
-    # pr_crossEnc = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", max_length=512)
-    
-    # semantic textual similarity encoder
-    sts_crossEnc = CrossEncoder("cross-encoder/stsb-roberta-base")
-
+    # lexical metrics
     rouge = evaluate.load('rouge', rouge_types=['rouge1', 'rouge2', 'rougeL', 'rougeLsum'], use_aggregator=True, use_stemmer=True)
     bleu = evaluate.load('bleu', max_order=4, smooth=False)
     meteor = evaluate.load('meteor')
-
+    sacrebleu = evaluate.load('sacrebleu', lowercase=True)
+    em = evaluate.load('exact_match')
+    
+    # learned metrics
+    sts_crossEnc = CrossEncoder("cross-encoder/stsb-roberta-base")
+    bertscore = evaluate.load('bertscore', idf=True)
+    bleurt = evaluate.load('bleurt', checkpoint="bleurt-base-128")
 
     def get_stats(self, name:str, scores:np.ndarray)->Dict[str,float]:
         return {f'{name}_mean':np.mean(scores),
@@ -41,10 +42,19 @@ class Evaluator:
         """
         if len(prediction)==0:
             prediction = 'x'
-        lexical_metrics = [self.bleu,self.rouge,self.meteor]
+        lexical_metrics = [self.em,self.bleu,self.sacrebleu,self.rouge,self.meteor]
         metrics = evaluate.combine(lexical_metrics, force_prefix=True)
         results = metrics.compute(predictions=[prediction], references=[reference])
+
+        # remove redundant keys
         results.pop('bleu_precisions')
+        results.pop('bleu_brevity_penalty')
+        results.pop('bleu_length_ratio')
+        results.pop('bleu_translation_length')
+        results.pop('bleu_reference_length')
+        results.pop('sacrebleu_counts')
+        results.pop('sacrebleu_totals')
+        results.pop('sacrebleu_precisions')
         return results
 
     # semantic based

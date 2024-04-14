@@ -78,7 +78,6 @@ def main(question_with_context_file:str,
     metrics_df = get_metrics_df(df)
     df = pd.concat([df, metrics_df], axis=1)
 
-    metrics_df.to_csv('metrics.csv')
     scores = metrics_df.mean(axis=0).to_dict()
     
     new_id = answer_database.new_entry(**config.model_dump(), **scores)
