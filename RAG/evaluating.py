@@ -19,8 +19,8 @@ class Evaluator:
     
     # learned metrics
     sts_crossEnc = CrossEncoder("cross-encoder/stsb-roberta-base")
-    bertscore = evaluate.load('bertscore', idf=True)
-    bleurt = evaluate.load('bleurt', checkpoint="bleurt-base-128")
+    #bertscore = evaluate.load('bertscore', idf=True)
+    #bleurt = evaluate.load('bleurt', checkpoint="bleurt-base-128")
 
     def get_stats(self, name:str, scores:np.ndarray)->Dict[str,float]:
         return {f'{name}_mean':np.mean(scores),

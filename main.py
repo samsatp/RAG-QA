@@ -32,7 +32,7 @@ if __name__=='__main__':
     print(f"{args.command=}")
     print(f"{args.frac=}")
     if args.use_context:
-        use_context = args.context == 'y'
+        use_context = args.use_context == 'y'
     else:
         use_context = True
     print(f"use context to generate (if at all): {use_context}")

@@ -13,6 +13,7 @@ class Config(BaseModel):
     # generate
     question_with_context_file: str
     generating_model: str
+    use_context: bool
 
 
 def merge_strings(strings: List[str]):
@@ -45,11 +46,12 @@ def generate(q: str, docs: List[str], model, tokenizer)->str:
 
 def main(question_with_context_file:str,
          generating_model:str,
-         use_context=True,):
+         use_context=True):
     
     print('GENERATING CONFIG')
     config = Config(question_with_context_file=question_with_context_file,
-                    generating_model=generating_model)
+                    generating_model=generating_model,
+                    use_context=use_context)
 
     if 't5' in config.generating_model:
         tokenizer = T5Tokenizer.from_pretrained(config.generating_model)
