@@ -123,7 +123,8 @@ def get_embedding(model_name: str):
 
 def get_vectorstore(chroma_collection_name: str,
                     distance_fn: str,
-                    embedding_model: str)->VectorStore:
+                    embedding_model: str,
+                    metadata)->VectorStore:
     
     # connect to Chroma client
     client = chromadb.PersistentClient()
@@ -132,7 +133,7 @@ def get_vectorstore(chroma_collection_name: str,
     langchain_chroma = Chroma(client=client,
                               collection_name=chroma_collection_name,
                               embedding_function=get_embedding(embedding_model),
-                              collection_metadata={"hnsw:space": distance_fn})  
+                              collection_metadata={"hnsw:space": distance_fn, **metadata})  
     print(f"{langchain_chroma._embedding_function.model_name=}")  
     print(f"{langchain_chroma._collection.name=}")  
     print(f"{langchain_chroma._collection.metadata=}")  
@@ -158,7 +159,11 @@ def main(data_dir:str,
                        chunk_overlap=chunk_overlap)
     vectorstore = get_vectorstore(chroma_collection_name=collection_name,
                                   distance_fn=config.distance_fn,
-                                  embedding_model=config.embedding_model)
+                                  embedding_model=config.embedding_model,
+                                  metadata = dict(chunk_size=chunk_size,
+                                                  chunk_overlap=chunk_overlap,
+                                                  embedding_model=embedding_model)
+                                  )
     vectorstore.add_documents(chunks)
 
     indexing_database.update(index=collection_name, key='status', value=1)
