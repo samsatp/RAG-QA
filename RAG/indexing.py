@@ -124,7 +124,7 @@ def get_embedding(model_name: str):
 def get_vectorstore(chroma_collection_name: str,
                     distance_fn: str,
                     embedding_model: str,
-                    metadata)->VectorStore:
+                    metadata:Dict = None)->VectorStore:
     
     # connect to Chroma client
     client = chromadb.PersistentClient()
@@ -133,7 +133,7 @@ def get_vectorstore(chroma_collection_name: str,
     langchain_chroma = Chroma(client=client,
                               collection_name=chroma_collection_name,
                               embedding_function=get_embedding(embedding_model),
-                              collection_metadata={"hnsw:space": distance_fn, **metadata})  
+                              collection_metadata={"hnsw:space": distance_fn, **metadata} if metadata else None)
     print(f"{langchain_chroma._embedding_function.model_name=}")  
     print(f"{langchain_chroma._collection.name=}")  
     print(f"{langchain_chroma._collection.metadata=}")  

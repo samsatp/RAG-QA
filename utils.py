@@ -38,7 +38,32 @@ def get_context_chunks(collection: chromadb.Collection)->Dict[str, List[str]]:
     return output
 
     
+from rich import print
+import chromadb
+import pandas as pd
 
+def get_collections():
+    client = chromadb.PersistentClient('chroma')
+    return client.list_collections()
+
+def ls_collections():
+    for _ in get_collections():
+        print(_.name)
+        
+def print_df():
+    rows = []
+    for i, col in enumerate(get_collections(), start = 1):
+        rows.append({
+            'n': i,
+            'collection':col.name,
+            'count':col.count(),
+            'meta':col.metadata
+        })
+
+    df = pd.DataFrame(rows).set_index('n')
+    print(df)
+
+    
 if __name__=='__main__':
     command = sys.argv[1]
     if command == 'truncate':
@@ -47,3 +72,9 @@ if __name__=='__main__':
         client = chromadb.PersistentClient()
         client.delete_collection(collection_name)
         client.get_or_create_collection(collection_name)
+    elif command == 'print_df':
+        print_df()
+    elif command == 'ls_collections':
+        ls_collections()
+    else:
+        print('command not found')

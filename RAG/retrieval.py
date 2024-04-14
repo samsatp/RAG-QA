@@ -82,7 +82,7 @@ def main(frac:float,
         relevant_docs_list.append(relevant_docs)
         doc_ids_list.append(doc_ids)
 
-        if i%500==0:
+        if i%300==0:
             print(f'{i} queries processed')
 
     # attach context chunks
