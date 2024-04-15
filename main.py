@@ -28,6 +28,10 @@ if __name__=='__main__':
     parser.add_argument("-generating_model","--generating_model", type=str, required=False, default="google/flan-t5-base")
     parser.add_argument("-use_context", "--use_context", type=str, required=False, choices=['y','n'])
 
+    # evaluate config
+    parser.add_argument("-evaluate_command","--evaluate_command", type=str, required=False)
+    parser.add_argument("-answerfile_excel","--answerfile_excel", type=str, required=False)
+
     args = parser.parse_args()
     print(f"{args.command=}")
     print(f"{args.frac=}")
@@ -57,6 +61,8 @@ if __name__=='__main__':
                         generating_model=args.generating_model,
                         use_context=use_context)
     elif command == 'evaluate':
-        ...
+        from RAG.evaluating import main as evaluate_main
+        evaluate_main(command=args.evaluate_command,
+                      answerfile_excel=args.answerfile_excel)
     else:
         print('command not found')

@@ -2,10 +2,11 @@ from typing import List, Dict
 from dataclasses import dataclass
 import numpy as np
 import pandas as pd
-import sys
+import sys, os
+import rich
 
 from sentence_transformers import CrossEncoder
-from RAG import DF_COL_NAMES
+from RAG import DF_COL_NAMES, answer_database
 import evaluate
 
 @dataclass
@@ -98,3 +99,48 @@ def get_metrics_df(df: pd.DataFrame)->pd.DataFrame:
     metrics = pd.DataFrame(metrics)
     return metrics
 
+
+def get_stats(name:str, scores:np.ndarray)->Dict[str,float]:
+        return {f'{name}_mean':np.mean(scores),
+                f'{name}_median':np.median(scores),
+                f'{name}_std':np.std(scores),
+                f'{name}_min':np.min(scores),
+                f'{name}_max':np.max(scores)}
+
+def get_learned_metrics(predictions: List[str], references: List[str])->Dict[str,float]:
+    """
+    
+    - BLEURT output = a number between 0 and (approximately 1). 
+        values closer to 1 representing more similar texts.
+    """
+    bertscore = evaluate.load('bertscore')
+        
+    results = bertscore.compute(predictions=predictions, references=references, model_type="distilbert-base-uncased")
+    results.update(get_stats('bertscore_precision', results['precision']))
+    results.update(get_stats('bertscore_recall', results['recall']))
+    results.update(get_stats('bertscore_f1', results['f1']))
+
+    results.pop('precision')
+    results.pop('recall')
+    results.pop('f1')
+
+    bleurt = evaluate.load('bleurt', checkpoint="bleurt-tiny-128")
+    results.update(bleurt.compute(predictions=predictions, references=references))
+
+    return results
+
+
+def main(command, **kwargs):
+    if command == 'get_learned_metrics':
+        answerfile_excel = kwargs['answerfile_excel']
+        df = pd.read_excel(answerfile_excel)
+        predictions = df[DF_COL_NAMES.generated_answers.value].values
+        references = df[DF_COL_NAMES.answers.value].values
+        results = get_learned_metrics(predictions=predictions, references=references)
+        
+        _, answerfile = os.path.split(answerfile_excel)
+        answerfile = answerfile.strip('.xlsx')
+
+        rich.print(results)
+        for k,v in results.items():
+            answer_database.update(index=answerfile, key=k, value=v)
