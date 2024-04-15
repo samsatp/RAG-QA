@@ -4,7 +4,7 @@
 #SBATCH -o csc_log_generating/%j.out
 #SBATCH -e csc_log_generating/%j.err
 #SBATCH -A project_2001403
-#SBATCH -t 6:00:00
+#SBATCH -t 3:00:00
 #SBATCH -p gpu
 #SBATCH -n 6
 #SBATCH --gres=gpu:v100:1

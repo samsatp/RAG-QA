@@ -4,11 +4,11 @@
 #SBATCH -o csc_log_retrieval/%j.out
 #SBATCH -e csc_log_retrieval/%j.err
 #SBATCH -A project_2001403
-#SBATCH -t 1:00:00
+#SBATCH -t 3:00:00
 #SBATCH -p gpu
 #SBATCH -n 6
 #SBATCH --gres=gpu:v100:1
-#SBATCH --mem-per-cpu=20G
+#SBATCH --mem-per-cpu=10G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=sathianpong.trangcasanchai@helsinki.fi
 
