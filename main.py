@@ -27,6 +27,7 @@ if __name__=='__main__':
     parser.add_argument("-question_with_context_file","--question_with_context_file", type=str, required=False)
     parser.add_argument("-generating_model","--generating_model", type=str, required=False, default="google/flan-t5-base")
     parser.add_argument("-use_context", "--use_context", type=str, required=False, choices=['y','n'])
+    parser.add_argument("-use_gold", "--use_gold", type=str, required=False, choices=['y','n'])
 
     # evaluate config
     parser.add_argument("-evaluate_command","--evaluate_command", type=str, required=False)
@@ -39,7 +40,12 @@ if __name__=='__main__':
         use_context = args.use_context == 'y'
     else:
         use_context = True
+    if args.use_gold:
+        use_gold = args.use_gold == 'y'
+    else:
+        use_gold = False
     print(f"use context to generate (if at all): {use_context}")
+    print(f"use gold context to generate (if at all): {use_gold}")
 
     command = args.command
     if command == 'indexing':   
@@ -59,7 +65,8 @@ if __name__=='__main__':
         from RAG.generating import main as generating_main
         generating_main(question_with_context_file=args.question_with_context_file,
                         generating_model=args.generating_model,
-                        use_context=use_context)
+                        use_context=use_context,
+                        use_gold_context=use_gold)
     elif command == 'evaluate':
         from RAG.evaluating import main as evaluate_main
         evaluate_main(command=args.evaluate_command,
