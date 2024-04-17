@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from rich import print
 from typing import List
 import sys, yaml, os, ast, torch
+import random
 import pandas as pd
 
 from RAG.evaluating import get_metrics_df
@@ -14,14 +15,14 @@ class Config(BaseModel):
     question_with_context_file: str
     generating_model: str
     use_context: bool
-
+    use_gold_context: bool
 
 def merge_strings(strings: List[str]):
     return ' '.join(strings)
 
-def generate(q: str, docs: List[str], model, tokenizer)->str:
+def generate(q: str, docs: str, model, tokenizer)->str:
     if docs:
-        input_text = f"""answer the question based on this context: {merge_strings(docs)} 
+        input_text = f"""answer the question based on this context: {docs[:450]} 
         question: {q}
         answer: """
     else:
@@ -34,7 +35,7 @@ def generate(q: str, docs: List[str], model, tokenizer)->str:
         outputs = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
     elif 'deepset/roberta' in model.name_or_path:
-        input_ids = tokenizer(q, merge_strings(docs), return_tensors="pt")
+        input_ids = tokenizer(q, docs, return_tensors="pt")
         with torch.no_grad():
             outputs = model(**input_ids)
         answer_start_index = outputs.start_logits.argmax()
@@ -46,12 +47,14 @@ def generate(q: str, docs: List[str], model, tokenizer)->str:
 
 def main(question_with_context_file:str,
          generating_model:str,
-         use_context=True):
+         use_context=True,
+         use_gold_context=False):
     
     print('GENERATING CONFIG')
     config = Config(question_with_context_file=question_with_context_file,
                     generating_model=generating_model,
-                    use_context=use_context)
+                    use_context=use_context,
+                    use_gold_context=use_gold_context)
 
     if 't5' in config.generating_model:
         tokenizer = T5Tokenizer.from_pretrained(config.generating_model)
@@ -61,14 +64,19 @@ def main(question_with_context_file:str,
         tokenizer = AutoTokenizer.from_pretrained(config.generating_model)
 
     df = pd.read_excel(config.question_with_context_file)
-    df[DF_COL_NAMES.retrieved_docs.value] = df[DF_COL_NAMES.retrieved_docs.value].apply(ast.literal_eval)
+    
 
     print(f'{len(df)} questions')
     answers = []
     for row in df.to_dict('records'): 
         if use_context:
-            print('USE CONTEXT')
-            answer = generate(row[DF_COL_NAMES.questions.value], row[DF_COL_NAMES.retrieved_docs.value], model, tokenizer)
+            if use_gold_context:
+                print('USE CONTEXT: gold')
+                answer = generate(row[DF_COL_NAMES.questions.value], row[DF_COL_NAMES.contexts.value], model, tokenizer)
+            else:
+                print('USE CONTEXT: retrieved docs')
+                df[DF_COL_NAMES.retrieved_docs.value] = df[DF_COL_NAMES.retrieved_docs.value].apply(ast.literal_eval)
+                answer = generate(row[DF_COL_NAMES.questions.value], merge_strings(row[DF_COL_NAMES.retrieved_docs.value]), model, tokenizer)
         else:
             print('CLOSE-BOOK QA')
             answer = generate(row[DF_COL_NAMES.questions.value], None, model, tokenizer)

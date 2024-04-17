@@ -21,7 +21,8 @@ source venv/bin/activate
 
 python main.py -c generating \
                -question_with_context_file $1 \
-               -use_context $2 
+               -use_context $2 \
+               -use_gold $3
 
 
 echo "Finishing at `date`"
