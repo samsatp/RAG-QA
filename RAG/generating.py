@@ -22,8 +22,8 @@ def merge_strings(strings: List[str]):
 
 def get_prompt(question:str, tokenizer:T5Tokenizer, context:str=None)->str:
     # limit context size to 420 tokens
-    context_tokens = tokenizer(context, truncation=True, max_length=400)
-    context = tokenizer.decode(context_tokens['input_ids'])
+    #context_tokens = tokenizer(context, truncation=True, max_length=400)
+    #context = tokenizer.decode(context_tokens['input_ids'])
     if context:
         return f"""answer the question based on this context: {context}
         question: {question}
@@ -31,30 +31,31 @@ def get_prompt(question:str, tokenizer:T5Tokenizer, context:str=None)->str:
     else:
         return f"Question: {question} \n Answer: "
     
-def generate(q: str, docs: str, model, tokenizer)->str:
-    if docs:
-        input_text = f"""answer the question based on this context: {docs[:450]} 
-        question: {q}
-        answer: """
-    else:
-        input_text = f"question: {q} \n answer: "
-
-    if 't5' in model.name_or_path:
-        input_ids = tokenizer(input_text, return_tensors="pt")
-        with torch.no_grad():
-            outputs = model.generate(**input_ids)
-        outputs = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-    elif 'deepset/roberta' in model.name_or_path:
-        input_ids = tokenizer(q, docs, return_tensors="pt")
-        with torch.no_grad():
-            outputs = model(**input_ids)
-        answer_start_index = outputs.start_logits.argmax()
-        answer_end_index = outputs.end_logits.argmax()
-
-        predict_answer_tokens = input_ids.input_ids[0, answer_start_index : answer_end_index + 1]
-        outputs = tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
-    return outputs
+# DEPRECATED
+#def generate(q: str, docs: str, model, tokenizer)->str:
+#    if docs:
+#        input_text = f"""answer the question based on this context: {docs[:450]} 
+#        question: {q}
+#        answer: """
+#    else:
+#        input_text = f"question: {q} \n answer: "
+#
+#    if 't5' in model.name_or_path:
+#        input_ids = tokenizer(input_text, return_tensors="pt")
+#        with torch.no_grad():
+#            outputs = model.generate(**input_ids)
+#        outputs = tokenizer.decode(outputs[0], skip_special_tokens=True)
+#
+#    elif 'deepset/roberta' in model.name_or_path:
+#        input_ids = tokenizer(q, docs, return_tensors="pt")
+#        with torch.no_grad():
+#            outputs = model(**input_ids)
+#        answer_start_index = outputs.start_logits.argmax()
+#        answer_end_index = outputs.end_logits.argmax()
+#
+#        predict_answer_tokens = input_ids.input_ids[0, answer_start_index : answer_end_index + 1]
+#        outputs = tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
+#    return outputs
 
 def batch_generate(prompts: List[str], 
                    model: T5ForConditionalGeneration, 
