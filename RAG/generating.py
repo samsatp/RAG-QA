@@ -20,6 +20,17 @@ class Config(BaseModel):
 def merge_strings(strings: List[str]):
     return ' '.join(strings)
 
+def get_prompt(question:str, tokenizer:T5Tokenizer, context:str=None)->str:
+    # limit context size to 420 tokens
+    context_tokens = tokenizer(context, truncation=True, max_length=400)
+    context = tokenizer.decode(context_tokens['input_ids'])
+    if context:
+        return f"""answer the question based on this context: {context}
+        question: {question}
+        answer: """
+    else:
+        return f"Question: {question} \n Answer: "
+    
 def generate(q: str, docs: str, model, tokenizer)->str:
     if docs:
         input_text = f"""answer the question based on this context: {docs[:450]} 
@@ -45,6 +56,17 @@ def generate(q: str, docs: str, model, tokenizer)->str:
         outputs = tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
     return outputs
 
+def batch_generate(prompts: List[str], 
+                   model: T5ForConditionalGeneration, 
+                   tokenizer: T5Tokenizer)->List[str]:
+    input_ids = tokenizer(prompts, return_tensors="pt", 
+                          max_length=512, 
+                          truncation=True, padding=True)
+    with torch.no_grad():
+        outputs = model.generate(**input_ids)
+    outputs: List[str] = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+    return outputs
+
 def main(question_with_context_file:str,
          generating_model:str,
          use_context=True,
@@ -68,7 +90,31 @@ def main(question_with_context_file:str,
 
     print(f'{len(df)} questions')
     answers = []
-    for row in df.to_dict('records'): 
+
+    questions = df[DF_COL_NAMES.questions.value].values
+    if use_context:
+        if use_gold_context:
+            print('USE CONTEXT: gold')
+            contexts = df[DF_COL_NAMES.contexts.value].values
+        else:
+            print('USE CONTEXT: retrieved docs')
+            contexts = df[DF_COL_NAMES.retrieved_docs.value]\
+                        .apply(ast.literal_eval)\
+                        .apply(merge_strings).values
+        prompts = [get_prompt(question=q, 
+                              context=c, 
+                              tokenizer=tokenizer) 
+                    for q,c in zip(contexts, questions)]
+    else:
+        print('CLOSE-BOOK QA')
+        prompts = [get_prompt(question=q, 
+                              tokenizer=tokenizer) 
+                    for q in questions]
+
+    answers = batch_generate(prompts=prompts,
+                             model=model,
+                             tokenizer=tokenizer)
+    """ for row in df.to_dict('records'): 
         if use_context:
             if use_gold_context:
                 print('USE CONTEXT: gold')
@@ -81,7 +127,7 @@ def main(question_with_context_file:str,
             print('CLOSE-BOOK QA')
             answer = generate(row[DF_COL_NAMES.questions.value], None, model, tokenizer)
             
-        answers.append(answer)
+        answers.append(answer) """
 
     df[DF_COL_NAMES.generated_answers.value] = answers
 
